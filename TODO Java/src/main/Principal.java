@@ -1,14 +1,19 @@
+package main;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
 
 public class Principal extends javax.swing.JFrame {
 
-    private Connection conn = new Conexao().getConexao();
+    private final Connection conn = new Conexao().getConexao();
     private PreparedStatement ps;
     private ResultSet rs;
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -16,6 +21,9 @@ public class Principal extends javax.swing.JFrame {
     DefaultListModel<Evento> modelDia = new DefaultListModel<>();
     DefaultListModel<Evento> modelAtrasados = new DefaultListModel<>();
 
+    /**
+     * Construtor da View. Realiza as tarefas iniciais.
+     */
     public Principal() {
         initComponents();
         iniciaCampos();
@@ -72,10 +80,16 @@ public class Principal extends javax.swing.JFrame {
         );
 
         listaDoDia.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        listaDoDia.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                listaDoDiaMouseClicked(evt);
+            }
+        });
         jScrollPane1.setViewportView(listaDoDia);
 
         btnNovoEvento.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         btnNovoEvento.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/7687_16x16.png"))); // NOI18N
+        btnNovoEvento.setMnemonic('N');
         btnNovoEvento.setText("Novo Evento");
         btnNovoEvento.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -85,6 +99,7 @@ public class Principal extends javax.swing.JFrame {
 
         btnEditar.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         btnEditar.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/8427_16x16.png"))); // NOI18N
+        btnEditar.setMnemonic('E');
         btnEditar.setText("Editar");
         btnEditar.setEnabled(false);
         btnEditar.addActionListener(new java.awt.event.ActionListener() {
@@ -95,8 +110,14 @@ public class Principal extends javax.swing.JFrame {
 
         btnApagar.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         btnApagar.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/9371_16x16.png"))); // NOI18N
+        btnApagar.setMnemonic('A');
         btnApagar.setText("Apagar");
         btnApagar.setEnabled(false);
+        btnApagar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnApagarActionPerformed(evt);
+            }
+        });
 
         jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder("Detalhes do Evento"));
 
@@ -111,6 +132,7 @@ public class Principal extends javax.swing.JFrame {
 
         txtDescricao.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         txtDescricao.setEnabled(false);
+        txtDescricao.setNextFocusableComponent(txtObservacoes);
         txtDescricao.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 txtDescricaoFocusGained(evt);
@@ -125,6 +147,7 @@ public class Principal extends javax.swing.JFrame {
 
         btnCancelar.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         btnCancelar.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/7695_16x16.png"))); // NOI18N
+        btnCancelar.setMnemonic('C');
         btnCancelar.setText("Cancelar");
         btnCancelar.setEnabled(false);
         btnCancelar.addActionListener(new java.awt.event.ActionListener() {
@@ -135,8 +158,14 @@ public class Principal extends javax.swing.JFrame {
 
         btnGravar.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         btnGravar.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/8439_16x16.png"))); // NOI18N
+        btnGravar.setMnemonic('G');
         btnGravar.setText("Gravar");
         btnGravar.setEnabled(false);
+        btnGravar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnGravarActionPerformed(evt);
+            }
+        });
 
         jLabel4.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         jLabel4.setText("Horário:");
@@ -263,6 +292,7 @@ public class Principal extends javax.swing.JFrame {
     }//GEN-LAST:event_calendarioPropertyChange
 
     private void btnNovoEventoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNovoEventoActionPerformed
+        iniciaCampos();
         habilitaCampos();
     }//GEN-LAST:event_btnNovoEventoActionPerformed
 
@@ -283,15 +313,42 @@ public class Principal extends javax.swing.JFrame {
         iniciaCampos();
     }//GEN-LAST:event_btnCancelarActionPerformed
 
+    private void btnGravarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGravarActionPerformed
+        if (btnGravar.getText().equalsIgnoreCase("Gravar")) {
+            gravar();
+        } else {
+            if (btnGravar.getText().equalsIgnoreCase("Atualizar")) {
+                atualizar(modelDia.getElementAt(listaDoDia.getSelectedIndex()));
+            }
+        }
+        iniciaCampos();
+        listarEventos();
+    }//GEN-LAST:event_btnGravarActionPerformed
+
+    private void btnApagarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnApagarActionPerformed
+        if (JOptionPane.showConfirmDialog(null, "Deseja apagar esse registro?", "Confirmação", JOptionPane.YES_NO_OPTION) == 0) {
+            apagar(modelDia.getElementAt(listaDoDia.getSelectedIndex()));
+            iniciaCampos();
+            listarEventos();
+        }
+    }//GEN-LAST:event_btnApagarActionPerformed
+
+    private void listaDoDiaMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listaDoDiaMouseClicked
+        try {
+            detalhar(modelDia.getElementAt(listaDoDia.getSelectedIndex()));
+            btnApagar.setEnabled(true);
+            btnEditar.setEnabled(true);
+        } catch (ArrayIndexOutOfBoundsException ex) {
+            System.out.println("Nenhum registro para selecionar...");
+        }
+    }//GEN-LAST:event_listaDoDiaMouseClicked
+
     /**
-     * @param args the command line arguments
+     * Método main
+     * Não existe tratamento para argumentos enviados.
+     * @param args 
      */
     public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
                 if ("Windows".equals(info.getName())) {
@@ -299,22 +356,12 @@ public class Principal extends javax.swing.JFrame {
                     break;
                 }
             }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(Principal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(Principal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(Principal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
             java.util.logging.Logger.getLogger(Principal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
-        //</editor-fold>
 
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new Principal().setVisible(true);
-            }
+        java.awt.EventQueue.invokeLater(() -> {
+            new Principal().setVisible(true);
         });
     }
 
@@ -340,27 +387,9 @@ public class Principal extends javax.swing.JFrame {
     private javax.swing.JTextPane txtObservacoes;
     // End of variables declaration//GEN-END:variables
 
-    private void listarEventos() {
-        try {
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM eventos WHERE data = ?");
-            ps.setString(1, sdf.format(calendario.getDate()));
-            rs = ps.executeQuery();
-            while (rs.next()) {
-
-                e = new Evento();
-                e.setDataEvento(rs.getDate("data"));
-                e.setHora(rs.getString("hora"));
-                e.setId(rs.getInt("id"));
-                e.setObservacoes(rs.getString("observacoes"));
-                e.setTitulo(rs.getString("titulo"));
-                modelDia.addElement(e);
-
-            }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Erro ao listar os eventos do dia.\n\n" + ex.getMessage());
-        }
-    }
-
+    /**
+     * Define os parâmetros iniciais dos campos e botões
+     */
     private void iniciaCampos() {
 
         btnNovoEvento.setEnabled(true);
@@ -368,6 +397,8 @@ public class Principal extends javax.swing.JFrame {
         btnCancelar.setEnabled(false);
         btnEditar.setEnabled(false);
         btnGravar.setEnabled(false);
+
+        btnGravar.setText("Gravar");
 
         txtData.setEnabled(false);
         txtDescricao.setEnabled(false);
@@ -380,9 +411,15 @@ public class Principal extends javax.swing.JFrame {
         txtObservacoes.setText("");
 
         btnNovoEvento.requestFocus();
+        
+        listaDoDia.setEnabled(true);
+        listaDoDia.setSelectedIndex(-1);
 
     }
 
+    /**
+     * Altera a View quando um registro é selecionado.
+     */
     private void habilitaCampos() {
         btnNovoEvento.setEnabled(false);
         btnEditar.setEnabled(false);
@@ -393,10 +430,152 @@ public class Principal extends javax.swing.JFrame {
         txtObservacoes.setEnabled(true);
         btnCancelar.setEnabled(true);
         btnGravar.setEnabled(true);
+        listaDoDia.setEnabled(false);
+        listaDoDia.setSelectedIndex(-1);
 
         txtData.setDate(calendario.getDate());
         txtHora.requestFocus();
         txtHora.selectAll();
+    }
+
+    /**
+     * Lista os eventos do dia selecionado no calendário
+     */
+    private void listarEventos() {
+        try {
+            modelDia.clear();
+            ps = conn.prepareStatement("SELECT * FROM eventos WHERE data = ? ORDER BY hora");
+            ps.setString(1, sdf.format(calendario.getDate()));
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                e = new Evento();
+                e.setDataEvento(strToDate(rs.getString("data")));
+                e.setHora(strToLocalTime(rs.getString("hora")));
+                e.setId(rs.getInt("id"));
+                e.setObservacoes(rs.getString("observacoes"));
+                e.setTitulo(rs.getString("titulo"));
+                modelDia.addElement(e);
+            }
+            rs.close();
+            ps.close();
+            listaDoDia.setModel(modelDia);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Erro ao listar os eventos do dia.\n\n" + ex.getMessage());
+        }
+    }
+
+    /**
+     * Grava um novo evento no banco de dados
+     */
+    private void gravar() {
+        String sql = "INSERT INTO eventos (data, hora, titulo, observacoes) VALUES (?,?,?,?)";
+        try {
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, dateToStrUS(txtData.getDate()));
+            ps.setString(2, txtHora.getText());
+            ps.setString(3, txtDescricao.getText());
+            ps.setString(4, txtObservacoes.getText());
+            ps.executeUpdate();
+            ps.close();
+            System.out.println("Registro salvo com sucesso!");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Erro ao gravar os dados:\n" + ex, "Erro", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Deleta o evento selecionado do banco de dados
+     * @param e 
+     */
+    private void apagar(Evento e) {
+        String sql = "DELETE FROM eventos WHERE id = ?";
+        try {
+            ps = conn.prepareStatement(sql);
+            ps.setInt(1, e.getId());
+            ps.executeUpdate();
+            ps.close();
+            System.out.println("Registro removido com sucesso!");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Erro ao gravar ao remover o registro:\n" + ex, "Erro", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Atualiza o registro do banco com os dados novos.
+     * @param e 
+     */
+    private void atualizar(Evento e) {
+        String sql = "UPDATE eventos SET data=?, hora=?, titulo=?, observacoes=? WHERE id=?";
+        try {
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, dateToStrUS(e.getDataEvento()));
+            ps.setString(2, txtHora.getText());
+            ps.setString(3, txtDescricao.getText());
+            ps.setString(4, txtObservacoes.getText());
+            ps.setInt(5, e.getId());
+            ps.executeUpdate();
+            ps.close();
+            System.out.println("Registro atualizado com sucesso!");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Erro ao gravar os dados:\n" + ex, "Erro", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Pega o evento selecionado na lista e exibe os dados
+     * @param e 
+     */
+    private void detalhar(Evento e) {
+        txtData.setDate(e.getDataEvento());
+        txtHora.setText(localTimeToStr(e.getHora()));
+        txtDescricao.setText(e.getTitulo());
+        txtObservacoes.setText(e.getObservacoes());
+        btnGravar.setText("Atualizar");
+    }
+
+    /**
+     * Converte a data informada em uma string de data no formato BR: yyyy-mm-dd
+     *
+     * @param data
+     * @return
+     */
+    private String dateToStrUS(Date data) {
+        return new SimpleDateFormat("yyyy-MM-dd").format(data);
+    }
+
+    /**
+     * Converte a data informada na string para java.util.date
+     *
+     * @param data
+     * @return
+     */
+    private Date strToDate(String data) throws ParseException {
+        return new SimpleDateFormat("yyyy-MM-dd").parse(data);
+    }
+
+    /**
+     * Converte a LocalTime informada em String de hora hh:mm
+     *
+     * @param hora
+     * @return
+     */
+    private String localTimeToStr(LocalTime hora) {
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm");
+        return hora.format(dtf);
+    }
+
+    /**
+     * Converte a String hora para LocalTime
+     *
+     * @param hora
+     * @return
+     */
+    private LocalTime strToLocalTime(String hora) {
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm");
+        return LocalTime.parse(hora, dtf);
     }
 
 }
