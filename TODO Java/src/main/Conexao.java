@@ -6,6 +6,9 @@ import java.io.FileOutputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
 import javax.swing.JOptionPane;
 
 public class Conexao {
@@ -59,5 +62,5 @@ public class Conexao {
         }
 
     }
-    
+
 }

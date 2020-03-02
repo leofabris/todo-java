@@ -8,8 +8,14 @@ import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
 import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
+import main.exceptions.NonexistentEntityException;
 
 public class Principal extends javax.swing.JFrame {
 
@@ -17,9 +23,12 @@ public class Principal extends javax.swing.JFrame {
     private PreparedStatement ps;
     private ResultSet rs;
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-    Evento e;
-    DefaultListModel<Evento> modelDia = new DefaultListModel<>();
-    DefaultListModel<Evento> modelAtrasados = new DefaultListModel<>();
+    Eventos e;
+    DefaultListModel<Eventos> modelDia = new DefaultListModel<>();
+    DefaultListModel<Eventos> modelAtrasados = new DefaultListModel<>();
+    EntityManagerFactory emf = Persistence.createEntityManagerFactory("TODO_JavaPU");
+    EntityManager em = emf.createEntityManager();
+    EventosJpaController control = new EventosJpaController(emf);
 
     /**
      * Construtor da View. Realiza as tarefas iniciais.
@@ -344,9 +353,9 @@ public class Principal extends javax.swing.JFrame {
     }//GEN-LAST:event_listaDoDiaMouseClicked
 
     /**
-     * Método main
-     * Não existe tratamento para argumentos enviados.
-     * @param args 
+     * Método main Não existe tratamento para argumentos enviados.
+     *
+     * @param args
      */
     public static void main(String args[]) {
         try {
@@ -380,7 +389,7 @@ public class Principal extends javax.swing.JFrame {
     private javax.swing.JPanel jPanel2;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JList<Evento> listaDoDia;
+    private javax.swing.JList<Eventos> listaDoDia;
     private com.toedter.calendar.JDateChooser txtData;
     private javax.swing.JTextField txtDescricao;
     private javax.swing.JFormattedTextField txtHora;
@@ -411,7 +420,7 @@ public class Principal extends javax.swing.JFrame {
         txtObservacoes.setText("");
 
         btnNovoEvento.requestFocus();
-        
+
         listaDoDia.setEnabled(true);
         listaDoDia.setSelectedIndex(-1);
 
@@ -442,98 +451,75 @@ public class Principal extends javax.swing.JFrame {
      * Lista os eventos do dia selecionado no calendário
      */
     private void listarEventos() {
-        try {
-            modelDia.clear();
-            ps = conn.prepareStatement("SELECT * FROM eventos WHERE data = ? ORDER BY hora");
-            ps.setString(1, sdf.format(calendario.getDate()));
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                e = new Evento();
-                e.setDataEvento(strToDate(rs.getString("data")));
-                e.setHora(strToLocalTime(rs.getString("hora")));
-                e.setId(rs.getInt("id"));
-                e.setObservacoes(rs.getString("observacoes"));
-                e.setTitulo(rs.getString("titulo"));
-                modelDia.addElement(e);
-            }
-            rs.close();
-            ps.close();
-            listaDoDia.setModel(modelDia);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Erro ao listar os eventos do dia.\n\n" + ex.getMessage());
+        modelDia.clear();
+        for (Eventos e : control.findEventosDoDia(dateToStrUS(calendario.getDate()))) {
+            modelDia.addElement(e);
         }
+        listaDoDia.setModel(modelDia);
     }
 
     /**
      * Grava um novo evento no banco de dados
      */
     private void gravar() {
-        String sql = "INSERT INTO eventos (data, hora, titulo, observacoes) VALUES (?,?,?,?)";
-        try {
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, dateToStrUS(txtData.getDate()));
-            ps.setString(2, txtHora.getText());
-            ps.setString(3, txtDescricao.getText());
-            ps.setString(4, txtObservacoes.getText());
-            ps.executeUpdate();
-            ps.close();
-            System.out.println("Registro salvo com sucesso!");
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Erro ao gravar os dados:\n" + ex, "Erro", JOptionPane.ERROR_MESSAGE);
-            ex.printStackTrace();
-        }
+        e = new Eventos();
+        e.setData(txtData.getDateFormatString());
+        e.setHora(txtHora.getText());
+        e.setObservacoes(txtObservacoes.getText());
+        e.setTitulo(txtDescricao.getText());
+        control.create(e);
     }
 
     /**
      * Deleta o evento selecionado do banco de dados
-     * @param e 
+     *
+     * @param e
      */
-    private void apagar(Evento e) {
-        String sql = "DELETE FROM eventos WHERE id = ?";
+    private void apagar(Eventos e) {
+
         try {
-            ps = conn.prepareStatement(sql);
-            ps.setInt(1, e.getId());
-            ps.executeUpdate();
-            ps.close();
-            System.out.println("Registro removido com sucesso!");
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Erro ao gravar ao remover o registro:\n" + ex, "Erro", JOptionPane.ERROR_MESSAGE);
-            ex.printStackTrace();
+            control.destroy(e.getId());
+        } catch (NonexistentEntityException ex) {
+            System.out.println(ex);
         }
+
     }
 
     /**
      * Atualiza o registro do banco com os dados novos.
-     * @param e 
+     *
+     * @param e
      */
-    private void atualizar(Evento e) {
-        String sql = "UPDATE eventos SET data=?, hora=?, titulo=?, observacoes=? WHERE id=?";
+    private void atualizar(Eventos e) {
+
+        e.setData(txtData.getDateFormatString());
+        e.setHora(txtHora.getText());
+        e.setObservacoes(txtObservacoes.getText());
+        e.setTitulo(txtDescricao.getText());
         try {
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, dateToStrUS(e.getDataEvento()));
-            ps.setString(2, txtHora.getText());
-            ps.setString(3, txtDescricao.getText());
-            ps.setString(4, txtObservacoes.getText());
-            ps.setInt(5, e.getId());
-            ps.executeUpdate();
-            ps.close();
-            System.out.println("Registro atualizado com sucesso!");
+            control.edit(e);
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Erro ao gravar os dados:\n" + ex, "Erro", JOptionPane.ERROR_MESSAGE);
-            ex.printStackTrace();
+            System.out.println(ex);
         }
+
     }
 
     /**
      * Pega o evento selecionado na lista e exibe os dados
-     * @param e 
+     *
+     * @param e
      */
-    private void detalhar(Evento e) {
-        txtData.setDate(e.getDataEvento());
-        txtHora.setText(localTimeToStr(e.getHora()));
-        txtDescricao.setText(e.getTitulo());
-        txtObservacoes.setText(e.getObservacoes());
-        btnGravar.setText("Atualizar");
+    private void detalhar(Eventos e) {
+        try {
+            txtData.setDate(strToDate(e.getData()));
+            txtHora.setText(e.getHora());
+            txtDescricao.setText(e.getTitulo());
+            txtObservacoes.setText(e.getObservacoes());
+            btnGravar.setText("Atualizar");
+        } catch (ParseException ex) {
+            Logger.getLogger(Principal.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
     }
 
     /**
